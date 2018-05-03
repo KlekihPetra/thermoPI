@@ -96,7 +96,9 @@ while True:
         db.commit()
     except:
         #print('Connection lost on %s' %(timestamp))
-        pass
+        err=open('/home/pi/Prog/err.txt', 'w')
+        err.write('Connection lost at %s.' % (timestamp))
+        err.close()
 
 
 
