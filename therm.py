@@ -58,49 +58,51 @@ def connect_db():
     c=con.cursor()
     return c, con
 
+
 dt = time.localtime()
 lcd = connect_lcd()
 c, db = connect_db()
 
+t_0 = time.time()
+
 while True:
-    # Wait 5 seconds
-    #gp.output(1, gp.HIGH)
-    time.sleep(5.0)
-    #gp.output(1, gp.LOW)
 
+	# Check buttons
 
-    t = read_temp()
-    tm = time.localtime()
-    
-    timestamp='%4i-%02i-%02i %02i:%02i:%02i' % (tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec) 
-    
-    # Print temperature
-    lcd.clear()
-    line = 'T = %4.1f\n' % (float(t))
-    #print line
-    lcd.message(line)
+    if time.time() - t_0 > 5.0:
+	    t = read_temp()
+	    
+	    tm = time.localtime()
+	    
+	    timestamp='%4i-%02i-%02i %02i:%02i:%02i' % (tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec) 
+	    
+	    # Print temperature
+	    lcd.clear()
+	    line = 'T = %4.1f\n' % (float(t))
+	    #print line
+	    lcd.message(line)
 
-    print('Temperatura w komorze: %5.2f C, grzanie: %s' % (float(t), heating))
+	    print('Temperatura w komorze: %5.2f C, grzanie: %s' % (float(t), heating))
 
-    if float(t) < (t_sp - 1.0):
-        gp.output(1, gp.HIGH)
-        heating = 'ON'
-        
-    elif float(t) > (t_sp + 1.0):
-        gp.output(1, gp.LOW)
-        heating = 'OFF'
+	    if float(t) < (t_sp - 1.0):
+	        gp.output(1, gp.HIGH)
+	        heating = 'ON'
+	        
+	    elif float(t) > (t_sp + 1.0):
+	        gp.output(1, gp.LOW)
+	        heating = 'OFF'
 
-    command='INSERT INTO Temperatura (T, Heat) VALUES(%5.2f, %d);' % (float(t), heat_dict[heating])
-    try:
-        c.execute(command)
-        db.commit()
-    except:
-        # log the event in a file:
-        err=open('/home/pi/Prog/err.txt', 'a')
-        err.write('Connection lost at %s.\n' % (timestamp))
-        err.close()
-        # reconnect to the db
-        c, db = connect_db()
+	    command='INSERT INTO Temperatura (T, Heat) VALUES(%5.2f, %d);' % (float(t), heat_dict[heating])
+	    try:
+	        c.execute(command)
+	        db.commit()
+	    except:
+	        # log the event in a file:
+	        err=open('/home/pi/Prog/err.txt', 'a')
+	        err.write('Connection lost at %s.\n' % (timestamp))
+	        err.close()
+	        # reconnect to the db
+	        c, db = connect_db()
 
 
 
