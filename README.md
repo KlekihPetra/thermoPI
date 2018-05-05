@@ -4,3 +4,5 @@ therm.py --> main script. Reads temperature from DS1820 sensors and stores the r
 
 Execute the script in the backround as root, preferably on startup.
 /etc/rc.local --> sudo python /../../therm.py & (add sleep 15 at the beginning of the rc.local to allow for networking to start up).
+
+If the connection to the db is lost, error handler restores the connection and log the event in a txt file

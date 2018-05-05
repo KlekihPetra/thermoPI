@@ -95,10 +95,12 @@ while True:
         c.execute(command)
         db.commit()
     except:
-        #print('Connection lost on %s' %(timestamp))
-        err=open('/home/pi/Prog/err.txt', 'w')
-        err.write('Connection lost at %s.' % (timestamp))
+        # log the event in a file:
+        err=open('/home/pi/Prog/err.txt', 'a')
+        err.write('Connection lost at %s.\n' % (timestamp))
         err.close()
+        # reconnect to the db
+        c, db = connect_db()
 
 
 
