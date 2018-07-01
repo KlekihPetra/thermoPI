@@ -15,20 +15,49 @@ import MySQLdb as db
 
 t_sp = 22.0
 
+# Read interval [s]
+read_interval = 5.0
+
 
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
 
-dev = '/sys/bus/w1/devices/10-000802b60060/w1_slave'
+##################################
+# 1 wire thermometer identifiers
+#
+# 10-000802b60060 - na długiej lancy
+#
+# 10- - lodówka
+#
+# 10- - komora
+#####################################
 
+sensors_dict = {'chamber':'/sys/bus/w1/devices/10-000802b60060/w1_slave'}
+
+# set pin referencing mode to BCM (as opposed to BOARD)
 gp.setmode(gp.BCM)
+
+# set GPIO pins as outputs
+# GPIO_1 - heating
+# GPIO_2 - pump
+# GPIO_3 - cooler
 gp.setup(1, gp.OUT)
+gp.setup(2, gp.OUT)
+gp.setup(3, gp.OUT)
+
+# deactivate all outputs
 gp.output(1, gp.LOW)
+gp.output(2, gp.LOW)
+gp.output(3, gp.LOW)
+
 heating = 'OFF'
+pump = 'OFF'
+cooling = 'OFF'
+
 heat_dict={'OFF':0, 'ON':1}
 
-def read_temp():
-    f = open(dev, 'r')
+def read_temp(location):
+    f = open(sensors_dict(location), 'r')
     lines = f.readlines()
     f.close()
     return float(lines[1].split('t=')[1])/1000.0
@@ -58,41 +87,73 @@ def connect_db():
     c=con.cursor()
     return c, con
 
+def get_timestamp():
+	tm = time.localtime()
+	return '%4i-%02i-%02i %02i:%02i:%02i' % (tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec)
 
+def lcd_temperature():
+	lcd.clear()
+	line = 'T = %4.1f\n' % (float(t))
+	#print line
+	lcd.message(line)
+	return
+
+
+# Get current time
+# time.localtime() returns time.struct_time(tm_year=2018, tm_mon=7, tm_mday=1, tm_hour=13, tm_min=24, tm_sec=42, tm_wday=6, tm_yday=182, tm_isdst=1)
 dt = time.localtime()
+
+# Establish connection to LCD
 lcd = connect_lcd()
+
+# Establish connection to the remote db
 c, db = connect_db()
 
+# Get current time (UNIX format)
 t_0 = time.time()
 
 while True:
 
 	# Check buttons
 
-    if time.time() - t_0 > 5.0:
-	    t = read_temp()
+    # Read sensors 
+    if time.time() - t_0 > read_interval:
 	    
-	    tm = time.localtime()
-	    
-	    timestamp='%4i-%02i-%02i %02i:%02i:%02i' % (tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec) 
-	    
-	    # Print temperature
-	    lcd.clear()
-	    line = 'T = %4.1f\n' % (float(t))
-	    #print line
-	    lcd.message(line)
+	    # Read temperature in the chamber and time the read sequence
 
-	    print('Temperatura w komorze: %5.2f C, grzanie: %s' % (float(t), heating))
+	    t_start = time.time()
+	    
+	    t_chamber = read_temp('chamber')
+	    
+	    t_stop = time.time()
+	    t_read = t_stop - t_start
 
-	    if float(t) < (t_sp - 1.0):
+	    print('It took %d seconds to read from the sensor.' % (t_read) )
+
+
+	    # Read ambient temperature
+	    # Read coolant temperature
+	    
+	    timestamp = get_timestamp()
+	    
+	    # Print chamber temperature
+	    lcd_temperature()
+
+	    print('Chamber temperature: %5.2f C, heater: %s' % (t_chamber, heating))
+
+	    if float(t_chamber) < (t_sp - 1.0):
+	    	#Chamber temperature is low. If mode is COOL --> wait. If mode is HEAT:
 	        gp.output(1, gp.HIGH)
 	        heating = 'ON'
 	        
-	    elif float(t) > (t_sp + 1.0):
+	    elif float(t_chamber) > (t_sp + 1.0):
+	    	# Chamber temperature is high. If mode is HEAT, wait. If mode is COOL:
 	        gp.output(1, gp.LOW)
 	        heating = 'OFF'
 
-	    command='INSERT INTO Temperatura (T, Heat) VALUES(%5.2f, %d);' % (float(t), heat_dict[heating])
+
+	    # put readings to the db
+	    command='INSERT INTO Temperatura (T, Heat) VALUES(%5.2f, %d);' % (float(t_chamber), heat_dict[heating])
 	    try:
 	        c.execute(command)
 	        db.commit()
@@ -104,6 +165,7 @@ while True:
 	        # reconnect to the db
 	        c, db = connect_db()
 
+	    t_0 = time.time()
 
 
 
