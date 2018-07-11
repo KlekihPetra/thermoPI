@@ -16,7 +16,7 @@ import MySQLdb as db
 t_sp = 22.0
 
 # Read interval [s]
-read_interval = 5.0
+read_interval = 10.0
 
 
 os.system('modprobe w1-gpio')
@@ -29,10 +29,11 @@ os.system('modprobe w1-therm')
 #
 # 10- - lodówka
 #
-# 10- - komora
+# 10-000802b5e41f - komora
 #####################################
 
-sensors_dict = {'chamber':'/sys/bus/w1/devices/10-000802b60060/w1_slave'}
+sensors_dict = {'aux':'/sys/bus/w1/devices/10-000802b60060/w1_slave',
+		'chamber':'/sys/bus/w1/devices/10-000802b5e41f/w1_slave'}
 
 # set pin referencing mode to BCM (as opposed to BOARD)
 gp.setmode(gp.BCM)
@@ -140,16 +141,16 @@ while True:
 	    lcd_temperature()
 
 	    print('Chamber temperature: %5.2f C, heater: %s' % (t_chamber, heating))
-
+            # Only cooling implemented, cooler always on
 	    if float(t_chamber) < (t_sp - 1.0):
 	    	#Chamber temperature is low. If mode is COOL --> wait. If mode is HEAT:
-	        gp.output(1, gp.HIGH)
-	        heating = 'ON'
+	        gp.output(2, gp.LOW)
+	        cooling = 'OFF'
 	        
 	    elif float(t_chamber) > (t_sp + 1.0):
 	    	# Chamber temperature is high. If mode is HEAT, wait. If mode is COOL:
-	        gp.output(1, gp.LOW)
-	        heating = 'OFF'
+	        gp.output(2, gp.HIGH)
+	        cooling = 'ON'
 
 
 	    # put readings to the db
