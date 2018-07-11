@@ -13,7 +13,7 @@ import MySQLdb as db
 # Temperature setpoint
 ###################
 
-t_sp = 22.0
+t_sp = 25.0
 
 # Read interval [s]
 read_interval = 10.0
@@ -25,9 +25,9 @@ os.system('modprobe w1-therm')
 ##################################
 # 1 wire thermometer identifiers
 #
-# 10-000802b60060 - na długiej lancy
+# 10-000802b60060 - auxiliary sensor
 #
-# 10- - lodówka
+# 10- - chamber
 #
 # 10-000802b5e41f - komora
 #####################################
@@ -58,7 +58,7 @@ cooling = 'OFF'
 heat_dict={'OFF':0, 'ON':1}
 
 def read_temp(location):
-    f = open(sensors_dict(location), 'r')
+    f = open(sensors_dict[location], 'r')
     lines = f.readlines()
     f.close()
     return float(lines[1].split('t=')[1])/1000.0
@@ -92,7 +92,7 @@ def get_timestamp():
 	tm = time.localtime()
 	return '%4i-%02i-%02i %02i:%02i:%02i' % (tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec)
 
-def lcd_temperature():
+def lcd_temperature(t):
 	lcd.clear()
 	line = 'T = %4.1f\n' % (float(t))
 	#print line
@@ -128,8 +128,8 @@ while True:
 	    
 	    t_stop = time.time()
 	    t_read = t_stop - t_start
-
-	    print('It took %d seconds to read from the sensor.' % (t_read) )
+            #print t_start, t_stop
+	    print('It took %3.1f seconds to read from the sensor.' % (t_read) )
 
 
 	    # Read ambient temperature
@@ -138,9 +138,9 @@ while True:
 	    timestamp = get_timestamp()
 	    
 	    # Print chamber temperature
-	    lcd_temperature()
+	    lcd_temperature(t_chamber)
 
-	    print('Chamber temperature: %5.2f C, heater: %s' % (t_chamber, heating))
+	    print('%s: chamber temperature: %5.2f C, heater: %s, cooler: %s' % (timestamp, t_chamber, heating, cooling))
             # Only cooling implemented, cooler always on
 	    if float(t_chamber) < (t_sp - 1.0):
 	    	#Chamber temperature is low. If mode is COOL --> wait. If mode is HEAT:
